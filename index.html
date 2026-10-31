@@ -1927,7 +1927,11 @@ function startFirebase(){
   auth=FB.initializeAuth(app,{persistence:[FB.indexedDBLocalPersistence,FB.browserLocalPersistence],popupRedirectResolver:FB.browserPopupRedirectResolver});
   try{fdb=FB.initializeFirestore(app,{localCache:FB.persistentLocalCache({tabManager:FB.persistentMultipleTabManager()})})}
   catch(e){fdb=FB.initializeFirestore(app,{})}
-  FB.getRedirectResult(auth).catch(e=>showLoginErr(e));
+  FB.getRedirectResult(auth).catch(e=>{
+    console.error('redirect result',e);
+    let pending=false;try{pending=sessionStorage.getItem('fitlog.redirect')==='1';sessionStorage.removeItem('fitlog.redirect')}catch(_){}
+    if(pending)showLoginErr(e);
+  });
   FB.onAuthStateChanged(auth,u=>{
     if(unsub){unsub();unsub=null}
     me=u;
@@ -1947,18 +1951,32 @@ function startFirebase(){
 async function login(){
   $('#loginErr').textContent='';
   const p=new FB.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});
+  const btn=$('#login .gbtn');btn.disabled=true;btn.style.opacity=.6;
   try{await FB.signInWithPopup(auth,p)}
   catch(e){
-    if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment')){
-      try{await FB.signInWithRedirect(auth,p)}catch(e2){showLoginErr(e2)}
-    }else if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')showLoginErr(e);
+    console.error('popup sign-in',e);
+    const c=typeof (e&&e.code)==='string'?e.code:'';
+    if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request'){}
+    else if(c==='auth/unauthorized-domain'||c==='auth/operation-not-allowed'||c==='auth/network-request-failed')showLoginErr(e);
+    else{
+      // popup didn't work in this browser: fall back to a full-page redirect
+      try{sessionStorage.setItem('fitlog.redirect','1')}catch(_){}
+      try{await FB.signInWithRedirect(auth,p);return}catch(e2){console.error('redirect sign-in',e2);showLoginErr(e2,e)}
+    }
   }
+  btn.disabled=false;btn.style.opacity='';
 }
-function showLoginErr(e){
-  const c=e&&e.code||'';
+function errText(e){
+  if(!e)return '未知錯誤';
+  const c=typeof e.code==='string'?e.code:'';
+  return [c,e.name&&e.name!=='FirebaseError'?e.name:'',e.message].filter(Boolean).join(' · ').slice(0,240);
+}
+function showLoginErr(e,first){
+  const c=e&&typeof e.code==='string'?e.code:'';
   const msg=c==='auth/unauthorized-domain'?'這個網址還沒加到 Firebase 的「已授權網域」。':
     c==='auth/network-request-failed'?'網路連線失敗，請稍後再試。':
-    c==='auth/operation-not-allowed'?'Firebase 還沒開啟 Google 登入。':'登入失敗：'+(c||e);
+    c==='auth/operation-not-allowed'?'Firebase 還沒開啟 Google 登入。':
+    '登入失敗：'+errText(e)+(first?'（彈出視窗：'+errText(first)+'）':'');
   $('#loginErr').textContent=msg;
 }
 function paintMe(){
