@@ -1989,7 +1989,7 @@ function openMenu(){
   ${me&&me.email?`<p style="color:var(--muted);font-size:13px;margin:-8px 0 8px">${esc(me.email)}</p>`:''}
   <button class="menu-item" data-act="csv">匯出全部紀錄（CSV）<small>下載後可以用 Google 試算表或 Excel 開啟，每一組一列</small></button>
   ${DEMO?'':'<button class="menu-item" data-act="logout" style="color:var(--danger)">登出</button>'}`;
-  draft=null;open('A');
+  draft=null;openSheet('A');
 }
 function exportCSV(){
   const rows=[['日期','星期','開始時間','總時長(分)','動作','類型','組','重量(kg)','次數','秒數','有氧(分)','公里','主要部位','輔助部位','備註']];
@@ -2101,9 +2101,9 @@ function render(){
 }
 
 /* ---------- sheets ---------- */
-function open(id){$('#ov'+id).classList.add('open')}
-function close(id){$('#ov'+id).classList.remove('open');if(id==='A'){draft=null;document.querySelectorAll('.m.hl').forEach(e=>e.classList.remove('hl'))}}
-['A','B'].forEach(id=>$('#ov'+id).addEventListener('click',e=>{if(e.target.id==='ov'+id)close(id)}));
+function openSheet(id){$('#ov'+id).classList.add('open')}
+function closeSheet(id){$('#ov'+id).classList.remove('open');if(id==='A'){draft=null;document.querySelectorAll('.m.hl').forEach(e=>e.classList.remove('hl'))}}
+['A','B'].forEach(id=>$('#ov'+id).addEventListener('click',e=>{if(e.target.id==='ov'+id)closeSheet(id)}));
 
 /* editor */
 let draft=null,confirmDel=false,editErr='';
@@ -2112,11 +2112,11 @@ function newSession(){
   const st=curStart(),en=addDays(st,6);
   const d=(now>=st&&now<=addDays(en,1))?now:st;
   draft={id:uid(),date:key(d),start:`${pad(now.getHours())}:${pad(Math.floor(now.getMinutes()/5)*5)}`,minutes:60,note:'',exercises:[],_new:true};
-  confirmDel=false;editErr='';renderEditor();open('A');
+  confirmDel=false;editErr='';renderEditor();openSheet('A');
 }
 function editSession(id){
   const s=Store.sessions.find(x=>x.id===id);if(!s)return;
-  draft=clone(s);draft._new=false;confirmDel=false;editErr='';renderEditor();open('A');
+  draft=clone(s);draft._new=false;confirmDel=false;editErr='';renderEditor();openSheet('A');
 }
 function exCard(ex,i){
   const d=exDef(ex);
@@ -2176,7 +2176,7 @@ function saveDraft(){
       return o;})};
   const d=parse(s.date),st=monday(new Date());
   weekOff=Math.round((monday(d)-st)/(7*864e5));
-  close('A');Store.put(s);
+  closeSheet('A');Store.put(s);
 }
 
 /* picker */
@@ -2186,7 +2186,7 @@ function recentDefs(){
   [...Store.sessions].sort((a,b)=>(b.date).localeCompare(a.date)).forEach(s=>s.exercises.forEach(e=>{if(!seen.has(e.name))seen.set(e.name,{name:e.name,kind:e.kind||'reps',p:e.p||[],s:e.s||[]})}));
   return [...seen.values()];
 }
-function openPicker(){pQuery='';pCat=recentDefs().length?'常用':'胸';custom={name:'',kind:'reps',m:[]};renderPicker();open('B')}
+function openPicker(){pQuery='';pCat=recentDefs().length?'常用':'胸';custom={name:'',kind:'reps',m:[]};renderPicker();openSheet('B')}
 function renderPicker(){
   const cats=['常用',...Object.keys(LIB),'自訂'];
   let items=[];
@@ -2223,7 +2223,7 @@ function muscleDetail(m){
   <p style="font-size:12px;color:var(--muted);margin:6px 0 14px">主要肌群每組算 1，輔助算 0.5；有氧每 15 分鐘算 1 組。一般建議每個部位每週 10–20 組。</p>
   ${rows.length?rows.map(r=>`<div class="detail-row"><div>${esc(r.e.name)}${r.sec?' <span>(輔助)</span>':''}<br><span>${WD[(parse(r.s.date).getDay()+6)%7]} ${md(parse(r.s.date))}</span></div><div>${esc(summary(r.e))}</div></div>`).join('')
     :'<p class="empty">這週還沒練到這個部位</p>'}`;
-  draft=null;open('A');
+  draft=null;openSheet('A');
 }
 
 /* ---------- events ---------- */
@@ -2236,14 +2236,14 @@ document.addEventListener('click',e=>{
     case 'login':login();break;
     case 'menu':openMenu();break;
     case 'csv':exportCSV();break;
-    case 'logout':close('A');FB.signOut(auth);break;
+    case 'logout':closeSheet('A');FB.signOut(auth);break;
     case 'prevWeek':weekOff--;render();break;
     case 'nextWeek':weekOff++;render();break;
     case 'thisWeek':weekOff=0;render();break;
     case 'newSession':newSession();break;
     case 'edit':editSession(b.dataset.id);break;
-    case 'closeA':close('A');break;
-    case 'closeB':close('B');break;
+    case 'closeA':closeSheet('A');break;
+    case 'closeB':closeSheet('B');break;
     case 'mins':draft.minutes=+b.dataset.v;renderEditor();break;
     case 'addSet':{const ex=draft.exercises[i];const last=ex.sets[ex.sets.length-1];ex.sets.push(last?clone(last):(ex.kind==='hold'?{sec:''}:{w:'',r:''}));renderEditor();break}
     case 'rmSet':draft.exercises[i].sets.splice(j,1);renderEditor();break;
@@ -2251,17 +2251,17 @@ document.addEventListener('click',e=>{
     case 'openPicker':openPicker();break;
     case 'askDel':confirmDel=true;renderEditor();break;
     case 'noDel':confirmDel=false;renderEditor();break;
-    case 'doDel':{const id=draft.id;close('A');Store.del(id);break}
+    case 'doDel':{const id=draft.id;closeSheet('A');Store.del(id);break}
     case 'save':saveDraft();break;
     case 'cat':pCat=b.dataset.v;pQuery='';renderPicker();break;
-    case 'pick':{const d=window._pick[+b.dataset.i];if(d){close('B');addExercise(d)}break}
+    case 'pick':{const d=window._pick[+b.dataset.i];if(d){closeSheet('B');addExercise(d)}break}
     case 'ckind':custom.kind=b.dataset.v;renderPicker();break;
     case 'cm':{const v=b.dataset.v;custom.m=custom.m.includes(v)?custom.m.filter(x=>x!==v):[...custom.m,v];renderPicker();break}
     case 'addCustom':{
       const name=custom.name.trim();
       if(!name){$('#cerr').textContent='請輸入動作名稱';return}
       if(!custom.m.length){$('#cerr').textContent='至少選一個部位';return}
-      close('B');addExercise({name,kind:custom.kind,p:custom.m,s:[]});break}
+      closeSheet('B');addExercise({name,kind:custom.kind,p:custom.m,s:[]});break}
   }
 });
 document.addEventListener('input',e=>{
