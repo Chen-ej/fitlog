@@ -1863,11 +1863,13 @@ const LIB = {
   '手臂':[['二頭彎舉','reps',['biceps'],['forearms']],['錘式彎舉','reps',['biceps','forearms'],[]],['三頭下壓','reps',['triceps'],[]],['過頭三頭伸展','reps',['triceps'],[]],['窄握臥推','reps',['triceps'],['chest']],['腕彎舉','reps',['forearms'],[]]],
   '腿':[['深蹲','reps',['quads','glutes'],['hamstrings','lowerback']],['腿推','reps',['quads','glutes'],['hamstrings']],['弓箭步','reps',['quads','glutes'],['hamstrings']],['保加利亞分腿蹲','reps',['quads','glutes'],['hamstrings']],['羅馬尼亞硬舉','reps',['hamstrings','glutes'],['lowerback']],['腿屈伸','reps',['quads'],[]],['腿彎舉','reps',['hamstrings'],[]],['臀推','reps',['glutes'],['hamstrings']],['提踵','reps',['calves'],[]]],
   '核心':[['捲腹','reps',['abs'],[]],['懸垂舉腿','reps',['abs'],['obliques','forearms']],['平板支撐','hold',['abs'],['obliques','shoulders']],['側棒式','hold',['obliques'],['abs']],['俄羅斯轉體','reps',['obliques'],['abs']],['健腹輪','reps',['abs'],['lats','shoulders']],['背部伸展','reps',['lowerback'],['glutes']]],
-  '有氧':[['跑步','cardio',['calves'],['quads','hamstrings']],['飛輪 / 單車','cardio',['quads'],['calves','glutes']],['划船機','cardio',['lats'],['quads','biceps']],['跳繩','cardio',['calves'],['shoulders']],['游泳','cardio',['lats','shoulders'],['triceps']],['橢圓機','cardio',['quads'],['glutes']],['爬坡走','cardio',['glutes','calves'],['quads']]]
+  '有氧':[['跑步','cardio',['calves'],['quads','hamstrings']],['飛輪 / 單車','cardio',['quads'],['calves','glutes']],['划船機','cardio',['lats'],['quads','biceps']],['跳繩','cardio',['calves'],['shoulders']],['游泳','cardio',['lats','shoulders'],['triceps']],['橢圓機','cardio',['quads'],['glutes']],['爬坡走','cardio',['glutes','calves'],['quads']],['健走','cardio',['calves'],['quads','glutes']],['登山','cardio',['quads','glutes'],['calves','hamstrings']],['爬樓梯','cardio',['quads','glutes'],['calves']]],
+  '球類':[['籃球','cardio',['quads','calves'],['glutes','shoulders']],['羽球','cardio',['shoulders','calves'],['quads','forearms']],['桌球','cardio',['forearms','shoulders'],['calves','obliques']],['網球','cardio',['shoulders','forearms'],['quads','calves','obliques']],['匹克球','cardio',['shoulders','calves'],['forearms','quads']],['排球','cardio',['shoulders','quads'],['calves']],['足球','cardio',['quads','hamstrings'],['calves','glutes']],['棒壘球','cardio',['shoulders','obliques'],['forearms']],['高爾夫','cardio',['obliques'],['shoulders','forearms']],['保齡球','cardio',['shoulders'],['forearms','quads']]],
+  '其他':[['瑜伽','cardio',['abs'],['hamstrings','shoulders','lowerback']],['皮拉提斯','cardio',['abs','obliques'],['glutes']],['太極拳','cardio',['quads'],['abs','glutes']],['伸展','cardio',['hamstrings'],['lowerback','shoulders']],['舞蹈','cardio',['calves','quads'],['abs']],['拳擊','cardio',['shoulders','abs'],['triceps','calves']],['攀岩','cardio',['forearms','lats'],['biceps','abs']]]
 };
 const LIBMAP = {};
 for(const c in LIB) for(const [n,k,p,s] of LIB[c]) LIBMAP[n]={name:n,kind:k,p,s};
-const KIND = {reps:'重量 / 次數',hold:'計時（秒）',cardio:'有氧'};
+const KIND = {reps:'重量 / 次數',hold:'計時（秒）',cardio:'運動時間（分）'};
 
 /* ---------- utils ---------- */
 const $ = s=>document.querySelector(s);
@@ -1911,7 +1913,7 @@ const Store = {
     FB.deleteDoc(this.ref(id)).catch(e=>this.fail(e));
   },
   demoSave(){try{localStorage.setItem('fitlog.demo',JSON.stringify(this.sessions))}catch(e){}},
-  fail(e){console.error(e);setSync(e&&e.code==='permission-denied'?'沒有寫入權限，請重新登入':'儲存失敗，請檢查網路後再試一次',true)}
+  fail(e){console.error(e);setSync(e&&e.code==='permission-denied'?'資料庫權限沒設定好（Firestore 規則）':'儲存失敗，請檢查網路後再試一次',true)}
 };
 function valid(s){return s&&typeof s==='object'&&typeof s.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s.date)&&Array.isArray(s.exercises)}
 function setSync(t,warn){const e=$('#sync');e.textContent=t;e.style.color=warn?'var(--danger)':''}
@@ -2058,7 +2060,7 @@ function svg(src,sc){
 let weekOff=0;
 function curStart(){return addDays(monday(new Date()),weekOff*7)}
 function summary(ex){
-  if(ex.kind==='cardio'){return [ex.min?ex.min+' 分':'',ex.km?ex.km+' km':''].filter(Boolean).join(' · ')||'有氧'}
+  if(ex.kind==='cardio'){return [ex.min?ex.min+' 分':'',ex.km?ex.km+' km':''].filter(Boolean).join(' · ')||'運動'}
   const n=setsOf(ex);
   if(ex.kind==='hold'){const mx=Math.max(0,...(ex.sets||[]).map(x=>+x.sec||0));return `${n} 組${mx?' · '+mx+' 秒':''}`}
   const mw=Math.max(0,...(ex.sets||[]).map(x=>+x.w||0));
@@ -2186,7 +2188,13 @@ function recentDefs(){
   [...Store.sessions].sort((a,b)=>(b.date).localeCompare(a.date)).forEach(s=>s.exercises.forEach(e=>{if(!seen.has(e.name))seen.set(e.name,{name:e.name,kind:e.kind||'reps',p:e.p||[],s:e.s||[]})}));
   return [...seen.values()];
 }
-function openPicker(){pQuery='';pCat=recentDefs().length?'常用':'胸';custom={name:'',kind:'reps',m:[]};renderPicker();openSheet('B')}
+function openPicker(){
+  pQuery='';pCat=recentDefs().length?'常用':'胸';custom={name:'',kind:'reps',m:[]};
+  $('#B').innerHTML=`<div class="sh-head"><h2>加入動作</h2><button class="x" data-act="closeB">✕</button></div>
+  <input id="pq" placeholder="搜尋動作…" autocomplete="off">
+  <div class="tabs" id="ptabs"></div><div id="plist"></div>`;
+  renderPicker();openSheet('B');
+}
 function renderPicker(){
   const cats=['常用',...Object.keys(LIB),'自訂'];
   let items=[];
@@ -2206,10 +2214,8 @@ function renderPicker(){
     body=items.length?items.map((d,i)=>`<button class="pick" data-act="pick" data-i="${i}"><div><b>${esc(d.name)}</b><small>${esc([...d.p.map(m=>MUSCLES[m]),...d.s.map(m=>MUSCLES[m]+'(輔)')].filter(Boolean).join('、'))}</small></div><span class="plus">＋</span></button>`).join('')
       :`<p class="empty" style="padding-top:16px">${pQuery?'找不到，可以到「自訂」新增':'還沒有常用動作'}</p>`;
   }
-  el.innerHTML=`<div class="sh-head"><h2>加入動作</h2><button class="x" data-act="closeB">✕</button></div>
-  <input id="pq" placeholder="搜尋動作…" value="${esc(pQuery)}">
-  <div class="tabs">${cats.map(c=>`<button data-act="cat" data-v="${c}" class="${!pQuery&&pCat===c?'on':''}">${c}</button>`).join('')}</div>
-  <div id="plist">${body}</div>`;
+  $('#ptabs').innerHTML=cats.map(c=>`<button data-act="cat" data-v="${c}" class="${!pQuery&&pCat===c?'on':''}">${c}</button>`).join('');
+  $('#plist').innerHTML=body;
 }
 
 /* muscle detail */
@@ -2264,9 +2270,13 @@ document.addEventListener('click',e=>{
       closeSheet('B');addExercise({name,kind:custom.kind,p:custom.m,s:[]});break}
   }
 });
+// IME (注音/拼音) support: don't react to the search box until the character is committed
+let composing=false;
+document.addEventListener('compositionstart',e=>{if(e.target.id==='pq')composing=true});
+document.addEventListener('compositionend',e=>{if(e.target.id==='pq'){composing=false;pQuery=e.target.value.trim();renderPicker()}});
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.id==='pq'){pQuery=t.value.trim();const pos=t.selectionStart;renderPicker();const n=$('#pq');n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}return}
+  if(t.id==='pq'){if(e.isComposing||composing)return;pQuery=t.value.trim();renderPicker();return}
   if(t.dataset.c==='name'){custom.name=t.value;return}
   if(!draft)return;
   if(t.dataset.f){draft[t.dataset.f]=t.value;if(t.dataset.f==='minutes')document.querySelectorAll('.quick button').forEach(b=>b.classList.toggle('on',+b.dataset.v===+t.value));return}
